@@ -2,4 +2,4 @@
 
 usage: 
 
-  ansible-playbook generate_cfg.yml -i host.yml 
+        ansible-playbook generate_cfg.yml -i host.yml 
