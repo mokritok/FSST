@@ -1,0 +1,82 @@
+---
+- hosts: nuevo_mk
+  connection: local
+  gather_facts: false
+  become: false
+
+  tasks:
+
+    - name: Fail when ip_lan_mikrotik is not a valid private address
+      fail:
+        msg: "ip_lan_mikrotik is not a valid private address"
+      when:
+        - not(ip_lan_mikrotik | ipaddr('private'))
+        - not(dhcp_client)
+
+    - name: Fail when nombre_corto_salon is larger than 13
+      fail:
+        msg: "nombre_corto_salon is larger than 13 characters"
+      when: nombre_corto_salon | length > 14
+  
+    - name: Fail when ip_wan_mikrotik is not a valid private address
+      fail:
+        msg: "ip_wan_mikrotik is not a valid private address"
+      when: not(ip_wan_mikrotik | ipaddr('private')) and ip_wan_mikrotik is defined
+
+    - name: Fail when ip_cajero is not a valid private address
+      fail:
+      with_items:
+        '{{ ip_cajero }}'
+      when: not(item | ipaddr('private'))
+    
+    - name: Fail when ip_tpv is not a valid private address
+      fail:
+      with_items:
+        '{{ ip_tpv }}'
+      when: not(item | ipaddr('private'))
+
+    - name: Fail when ip_wms is not a valid private address
+      fail:
+        msg: "{{ ip_wms }} is not a valid private ip address"
+      when:
+        - ip_wms is defined
+        - not(ip_wms | ipaddr('private'))
+
+    - name: generates preshared key
+      set_fact:
+        pskey: "{{ lookup('password', '/dev/null chars=ascii_lowercase,ascii_uppercase,digits length=15') }}"
+      when: pskey is undefined
+    - debug:
+        msg: "Preshared key is {{ pskey }}"
+
+    - name: Prints values of IP addresses
+      ansible.builtin.debug:
+        msg:
+        - "IP LAN Mikrotik: {{ ip_lan_mikrotik | ipaddr('address') }} / {{ ip_lan_mikrotik | ipaddr('netmask') }}"
+        - "IP WAN Mikrotik: {{ ip_wan_mikrotik | ipaddr('address') }} / {{ ip_wan_mikrotik | ipaddr('netmask') }}"
+        - "IP Gateway WAN: {{ ip_gateway | ipaddr('address') }}"
+
+    - name: generate config when WMS is in CDP 192.168.28.0/24
+      template:
+        src: "./templates/cfg_rb750_gr3_6.46.7.j2"
+        dest: "./ficheros_conf/cfg_rb750_gr3_6.46.7_{{ identity_name }}.rsc"
+      when:
+        - ip_wms is undefined or ip_wms | ipaddr('192.168.28.0/24')
+
+    - name: generate config when WMS in saloon
+      template:
+        src: "./templates/cfg_rb750_gr3_6.46.7_wms_local.j2"
+        dest: "./ficheros_conf/cfg_rb750_gr3_6.46.7_{{ identity_name }}.rsc"
+      when:
+        - ip_lan_mikrotik | ipaddr('private')
+        - ip_wms is defined
+        - not(ip_wms | ipaddr('192.168.28.0/24'))
+    
+    - name: generate FG100F commands
+      template:
+        src: "./templates/cfg_FG100F_commands.j2"
+        dest: "./ficheros_conf/FG100F_commands_{{ identity_name }}.conf"
+      when:
+        - ip_lan_mikrotik | ipaddr('private')
+        - nombre_corto_salon | length < 14
+    

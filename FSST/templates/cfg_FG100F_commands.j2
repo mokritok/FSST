@@ -1,0 +1,66 @@
+config vdom
+edit root
+config vpn ipsec phase1-interface
+edit {{ nombre_corto_salon }}
+set type dynamic
+set interface INTERNET
+set mode aggressive
+set peertype one
+set proposal 3des-sha1
+set dhgrp 2
+set peerid {{ id_ike_mikrotik }}
+set psksecret {{ pskey }}
+set dpd-retryinterval 60
+set dpd-retrycount 10
+set nattraversal enable
+set keylife 28800
+next
+end
+config vpn ipsec phase2-interface
+edit {{ nombre_corto_salon }}
+set phase1name "{{ nombre_corto_salon }}"
+set proposal 3des-sha1
+set dhgrp 2
+set keepalive enable
+set keylifeseconds 3600
+set src-subnet 192.168.28.0/24
+set dst-subnet {{ ip_lan_mikrotik | ipaddr('network') }}/{{ ip_lan_mikrotik | ipaddr('prefix') }}
+next
+end
+config router static
+edit 0
+set dst {{ ip_lan_mikrotik | ipaddr('network') }}/{{ ip_lan_mikrotik | ipaddr('prefix') }}
+set device {{ nombre_corto_salon }}
+next
+end
+config system interface
+edit {{ nombre_corto_salon }}
+set alias "{{ nombre_largo_salon }}"
+next
+end
+config system zone
+edit VPNs_FSS
+append interface {{ nombre_corto_salon }}
+next
+end
+end
+
+config vdom
+edit SSLVPN-node
+config firewall address
+edit "subnet_{{ nombre_largo_salon }}"
+set allow-routing enable
+set subnet {{ ip_lan_mikrotik | ipaddr('network') }} {{ ip_lan_mikrotik | ipaddr('netmask') }}
+next
+end
+# Definir Fase2 de la VPN contra el nuevo salon CasinoParkTorrijos, usando la misma fase1 vpns_mTIK
+config vpn ipsec phase2-interface
+edit "subnet_{{ nombre_largo_salon }}"
+set phase1name "vpns_mTIK"
+set proposal 3des-sha1
+set dhgrp 2
+set keylifeseconds 3600
+set dst-subnet {{ ip_lan_mikrotik | ipaddr('network') }} {{ ip_lan_mikrotik | ipaddr('netmask') }}
+next
+end
+end
